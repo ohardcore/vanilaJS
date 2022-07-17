@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
+    <link rel="stylesheet" href="https://pro.fontawesome.com/releases/v5.10.0/css/all.css" integrity="sha384-AYmEC3Yw5cVb3ZcuHtOA93w35dYTsvhLPVnYs9eStHfGJvOvKxVfELGroGkvsg+p" crossorigin="anonymous"/>
+    <script src="https://code.jquery.com/jquery-latest.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.18.0/moment.min.js"></script>
+    <title></title>
+    <style>
+        table{
+            padding: 10px;
+        }
+        table.detail {
+        border-collapse: collapse;
+        text-align: left;
+        line-height: 1.5;
+        margin : 20px 10px;
+        }
+        table.detail th {
+        width: 150px;
+        padding: 10px;
+        font-weight: bold;
+        vertical-align: top;
+        --border: 1px solid #ccc;
+        text-align: right;
+        }
+        table.detail td {
+        width: 350px;
+        padding: 10px;
+        vertical-align: top;
+        --border: 1px solid #ccc;
+        text-align: left;
+        }
+
+        .left{
+            text-align: left;
+        }
+        .right{
+            text-align: right;
+        }
+        .center{
+            text-align: center;
+        }
+
+        .txt_line_title {
+            width: 300px;
+            display: inline-block;
+            overflow:hidden;
+            text-overflow:ellipsis;
+            white-space:nowrap;
+        }
+        .txt_line_singer {
+            width: 150px;
+            display: inline-block;
+            overflow:hidden;
+            text-overflow:ellipsis;
+            white-space:nowrap;
+        }
+        #backBtn{
+            margin-left: 30px;
+        }
+        header{
+            margin-left: 20px;
+            margin-right: 20px;
+            margin-top: 30px;
+            margin-bottom: 30px;
+            font-weight: bold;
+        }
+        header .title{
+            font-size: 20px;
+        }
+    </style>
+    <script>
+    var globalChartType = "";
+    var PAGE_SIZE = 7;
+    $( function() {
+        $( "#tabs" ).tabs();
+        fnChartListSubmit("domestic");
+        var currentTime = getCurrentDate();
+        $( "#currentTime" ).text(currentTime);
+        callScrollingPaing();
+    });
+    function getCurrentDate(){
+        var date = new Date();
+        // var year = moment(date).format("YYYY");
+        // var month = moment(date).format("M");
+        // var date = moment(date).format("D");
+        // var currentTime = moment(date).format('YYYY년 M월 D일');
+        var year = (new Date()).getFullYear();
+        var month = (new Date()).getMonth()+1;
+        var date =(new Date()).getDate();
+        var hour = (new Date()).getHours();
+        var currentTime = year+"년 "+month+"월 "+date+"일 "+hour+":00";
+        return currentTime;
+    }
+    function callScrollingPaing(){
+        $(window).scroll(function() {
+            // index만 가지고 page
+            if ($(window).scrollTop() == $(document).height() - $(window).height()) {
+                fnChartListSubmit(globalChartType);
+            }
+        });
+    }
+    function fnRest(method,url, data, callback){
+        $.ajax({
+        method: method,
+        url: url,
+        data: data
+        })
+        .done(function( response ) {
+            console.log(response);
+            callback(response);
+        });
+    }
+
+    function fnChartListSubmit(chartType, type){
+        chartType = chartType ? chartType : "domestic";
+        globalChartType = chartType;
+        // paingSize 가 정해진 경우
+        var listSize = 0;
+        if(type == 'init'){
+            $("#"+chartType+"ChartListTable").empty();
+        }
+        listSize = $("#"+chartType+"ChartListTable tr").length;
+
+        console.log("listSize :: " + listSize);
+        var pageIndex = 0;
+        if(listSize > 0){
+            pageIndex =  listSize / PAGE_SIZE;
+        }
+        fnRest("GET", "http://localhost:3300/v1/chart/"+chartType+"?pageIndex="+pageIndex, {}, fnChartListSubmitCallback);
+    }
+
+    function fnChartListSubmitCallback(response){
+        if(response.chartList && response.chartList.length > 0){
+            fnTableGenerator(response.chartList, globalChartType+"ChartListTable");
+        }
+    }
+
+    function fnTableGenerator(data, domId){
+        var tbody = $("<tbody/>");
+        for(var i=0; i < data.length; i++){
+            var tr = $("<tr/>");
+            var td = $("<td/>");
+            var img = $("<img/>");
+            var span = $("<span/>")
+            console.log(data[i]);
+            tr.append(td.clone().append(data[i].id).attr({"width": "50px"}));
+            tr.append(td.clone().append(img.clone().attr({"src" : "./images/"+data[i].imageUrl})).attr({"width": "200px"}));
+            tr.append(td.clone().append(data[i].title).attr({"onClick" : "fnChartDetailSubmit("+data[i].id+")"}).addClass("left txt_line_title").attr({"width": "300px"}));
+            tr.append(td.clone().append(data[i].singer).addClass("right txt_line_singer").attr({"width": "150px"}));
+            tr.appendTo(tbody);
+        }
+        tbody.appendTo($("#"+domId));
+    }
+
+    function fnChartDetailSubmit(id){
+        fnRest("GET", "http://localhost:3300/v1/chart/detail/"+id, {}, fnChartDetailSubmitCallback);
+    }
+
+    function fnChartDetailSubmitCallback(response){
+        var chart = response.chart;
+        $("#singer").text(chart.singer?chart.singer:"");
+        $("#lyricist").text(chart.lyricist?chart.lyricist:"");
+        $("#melodizer").text(chart.melodizer?chart.melodizer:"");
+        $("#genre").text(chart.genre?chart.genre:"");
+
+        $("#chartList").hide();
+        $("#chartDetail").show();
+    }
+
+    function fnBack(){
+        $("#chartDetail").hide();
+        $("#chartList").show();
+        fnListInit();
+        $("#domesticTab").click();
+    }
+
+    function fnListInit(){
+        $("#domesticChartListTable").empty();
+        $("#overseasChartListTable").empty();
+    }
+
+    </script>
+</head>
+<body>
+    <div id="chartList">
+        <header>
+            <div class="title center">음악 차트</div>
+            <div class="current-time center" id="currentTime"></div>
+        </header>
+        <article>
+            <div id="tabs">
+                <ul>
+                    <li><a href="#domestic" id="domesticTab" onclick="fnChartListSubmit('domestic', 'init');">국내</a></li>
+                    <li><a href="#overseas" id="overseasTab" onclick="fnChartListSubmit('overseas', 'init');">해외</a></li>
+                </ul>
+                <div id="domestic">
+                    <table id="domesticChartListTable" width="100%">
+                    </table>
+                </div>
+                <div id="overseas">
+                    <table id="overseasChartListTable" width="100%">
+                    </table>
+                </div>
+            </div>
+        </article>
+    </div>
+    <div id="chartDetail" style="display: none;">
+        <header>
+            <div id="backBtn" onclick="fnBack();"><span class="fas fa-arrow-left"></span></div>
+            <div class="title center" id="title">음악 차트</div>
+            <div class="singer center" id="singer"></div>
+        </header>
+        <article>
+            <table class="detail" width="100%">
+                <tbody>
+                    <tr>
+                        <th>작사</th>
+                        <td id="lyricist"></td>
+                    </tr>
+                    <tr>
+                        <th>작곡</th>
+                        <td id="melodizer"></td>
+                    </tr>
+                    <tr>
+                        <th>장르</th>
+                        <td id="genre"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </article>
+    </div>
+</body>
+</html>
